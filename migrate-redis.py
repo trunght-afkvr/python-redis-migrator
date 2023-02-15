@@ -19,20 +19,16 @@ from redis.exceptions import ResponseError
 
 @click.command()
 @click.argument('srchost')
-@click.argument('srchostauth')
-@click.argument('srchostport')
 @click.argument('dsthost')
-@click.argument('dsthostauth')
-@click.argument('dsthostport')
 @click.option('--db', default=0, help='Redis db number, default 0')
 @click.option('--flush', default=False, is_flag=True, help='Delete all keys from destination before migrating')
-def migrate(srchost, srchostauth, srchostport, dsthost, dsthostauth, dsthostport, db, flush):
+def migrate(srchost, dsthost, db, flush):
     if srchost == dsthost:
         print 'Source and destination must be different.'
         return
 
-    source = redis.Redis(host=srchost, port=srchostport, db=db, password=srchostauth)
-    dest = redis.Redis(host=dsthost, port=dsthostport, db=db, password=dsthostauth)
+    source = redis.Redis(host=srchost)
+    dest = redis.Redis(host=dsthost)
 
     if flush:
         dest.flushdb()
@@ -64,6 +60,8 @@ def migrate(srchost, srchostauth, srchostport, dsthost, dsthostauth, dsthostport
         pipeline = dest.pipeline()
 
         for key, ttl, data in zip(keys, result[::2], result[1::2]):
+            if ttl < 0:
+                ttl = 0
             if ttl is None:
                 ttl = 0
             if data != None:
